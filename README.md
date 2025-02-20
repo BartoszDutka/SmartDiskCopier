@@ -2,7 +2,6 @@
 
 A modern Windows application for automated CD/DVD disc copying with multi-drive support and real-time progress tracking.
 
-![Main Interface](screenshots/main_interface.png)
 
 ## Key Features
 
