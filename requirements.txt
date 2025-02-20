@@ -1,3 +1,4 @@
 ttkthemes
 wmi
 pywin32
+pyinstaller

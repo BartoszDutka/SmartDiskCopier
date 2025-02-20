@@ -14,6 +14,15 @@ import sys
 import os.path
 from translations import TRANSLATIONS  # Dodaj import tłumaczeń
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class DiskCopier:
     def __init__(self):
         self.root = ThemedTk(theme="azure")
@@ -91,7 +100,7 @@ class DiskCopier:
                            background=self.colors['secondary'],
                            thickness=10)
 
-        self.destination_root = os.path.join(os.path.expanduser('~'), 'Desktop', 'DiscCopies')
+        self.destination_root = r'\\qnap4\d-plytki\Plytki'
         self.drives = []
         self.drive_statuses = {}
         self.progress_bars = {}
@@ -101,6 +110,21 @@ class DiskCopier:
         self.current_statuses = {}  # Dodaj słownik do przechowywania aktualnych statusów
         self.log_history = []  # Dodaj historię logów
         
+        # Dodaj stałe wymiary dla kafelków
+        self.DRIVE_CARD_HEIGHT = 150  # Stała wysokość kafelka
+        self.DRIVE_CARD_WIDTH = 300   # Stała szerokość kafelka
+        self.DRIVE_CARD_PADDING = 10  # Padding wewnętrzny
+        
+        # Dodaj style dla kafelków
+        self.style.configure('DriveCard.TLabelframe',
+                           background=self.colors['surface'],
+                           borderwidth=1,
+                           relief='solid')
+        
+        self.style.configure('StatusFrame.TFrame',
+                           background=self.colors['surface'],
+                           height=80)  # Stała wysokość dla obszaru statusu
+
         self.setup_gui()
         self.update_interface_language()  # Dodaj to wywołanie po setup_gui
         self.detect_drives()  # Pierwsze wykrycie napędów
@@ -373,27 +397,82 @@ class DiskCopier:
         try:
             self.drives = []
             
-            # Metoda 1: Używając WMI
-            c = wmi.WMI()
-            for cdrom in c.Win32_CDROMDrive():
-                if (cdrom.Drive):
-                    drive_path = cdrom.Drive + "\\"
-                    if drive_path not in self.drives:
-                        self.drives.append(drive_path)
-                        self.log('detected_drive_wmi', True, drive=cdrom.Drive, caption=cdrom.Caption)
-            
-            # Metoda 2: Sprawdzanie wszystkich możliwych liter dysków
-            for letter in string.ascii_uppercase:
-                drive_path = f"{letter}:\\"
+            # Importy potrzebne do wykrywania napędów
+            import win32api
+            import win32con
+            import win32file
+            import win32wnet
+
+            def check_remote_drive(drive_path):
                 try:
-                    drive_type = win32api.GetDriveType(drive_path)
+                    # Pobierz informacje o napędzie sieciowym
+                    drive_info = win32wnet.WNetGetConnection(drive_path[0] + ':')
+                    # Sprawdź czy to napęd CD/DVD
+                    if any(x in drive_info.upper() for x in ['CD', 'DVD', 'OPTICAL']):
+                        return True
+                except win32wnet.error:
+                    return False
+                return False
+
+            # Pobierz wszystkie litery dysków w systemie
+            drives = win32api.GetLogicalDriveStrings()
+            drives = drives.split('\000')[:-1]
+
+            for drive in drives:
+                try:
+                    drive_type = win32file.GetDriveType(drive)
+                    
+                    # Sprawdź lokalne napędy CD/DVD
                     if drive_type == win32con.DRIVE_CDROM:
-                        if drive_path not in self.drives:
-                            self.drives.append(drive_path)
-                            self.log('detected_drive_system', True, drive=drive_path)
-                except:
-                    continue
-            
+                        if drive not in self.drives:
+                            self.drives.append(drive)
+                            self.log('detected_drive_system', True, drive=drive)
+                    
+                    # Sprawdź napędy sieciowe/przekierowane
+                    elif drive_type == win32con.DRIVE_REMOTE:
+                        try:
+                            # Metoda 1: Sprawdź przez WNetGetConnection
+                            if check_remote_drive(drive):
+                                if drive not in self.drives:
+                                    self.drives.append(drive)
+                                    self.log('detected_drive_remote', True, drive=drive)
+                                continue
+
+                            # Metoda 2: Sprawdź nazwę woluminu
+                            volume_name = win32api.GetVolumeInformation(drive)[0]
+                            if volume_name and any(x in volume_name.upper() for x in ['CD', 'DVD', 'OPTICAL']):
+                                if drive not in self.drives:
+                                    self.drives.append(drive)
+                                    self.log('detected_drive_remote', True, drive=drive)
+                                continue
+
+                            # Metoda 3: Sprawdź mapowanie RDP
+                            import winreg
+                            rdp_key = winreg.OpenKey(
+                                winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Terminal Server Client\Default\AddIns\RDPDR\RDPDR\Devices"
+                            )
+                            try:
+                                i = 0
+                                while True:
+                                    name, value, _ = winreg.EnumValue(rdp_key, i)
+                                    if drive[0].upper() == name[0].upper() and 'CDROM' in value.upper():
+                                        if drive not in self.drives:
+                                            self.drives.append(drive)
+                                            self.log('detected_drive_remote', True, drive=drive)
+                                        break
+                                    i += 1
+                            except WindowsError:
+                                pass
+                            finally:
+                                winreg.CloseKey(rdp_key)
+
+                        except Exception as e:
+                            self.log('drive_check_error', True, drive=drive, error=str(e))
+
+                except Exception as e:
+                    self.log('drive_check_error', True, drive=drive, error=str(e))
+
             # Sortowanie i usuwanie duplikatów
             self.drives = sorted(list(set(self.drives)))
             
@@ -403,61 +482,70 @@ class DiskCopier:
             
             # Ustawienie gridu dla kafelków
             drive_container = ttk.Frame(self.drives_frame)
-            drive_container.pack(fill='both', expand=True)
+            drive_container.pack(fill='both', expand=True, padx=10)  # Dodane padx
             
-            drive_container.columnconfigure(0, weight=1)
-            drive_container.columnconfigure(1, weight=1)
-            
+            # Konfiguracja kolumn z równymi wagami
+            drive_container.grid_columnconfigure(0, weight=1, uniform='drive_col')
+            drive_container.grid_columnconfigure(1, weight=1, uniform='drive_col')
+
             # Tworzenie kafelków dla napędów
             for idx, drive in enumerate(self.drives):
                 row = idx // 2
                 col = idx % 2
                 
+                # Kontener na kafelek z ustaloną wysokością i szerokością
                 drive_card = ttk.LabelFrame(
                     drive_container,
                     text="",
-                    style='Card.TLabelframe',
-                    padding=5  # Zmniejszony padding
+                    style='DriveCard.TLabelframe',
+                    padding=self.DRIVE_CARD_PADDING
                 )
                 drive_card.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
+                drive_card.grid_propagate(False)  # Zapobiega zmianie rozmiaru
                 
-                # Create inner frame for drive content
+                # Wymuszenie minimalnych wymiarów
+                drive_card.configure(height=self.DRIVE_CARD_HEIGHT, width=self.DRIVE_CARD_WIDTH)
+                
+                # Kontener na zawartość
                 drive_content = ttk.Frame(drive_card)
                 drive_content.pack(fill='both', expand=True)
                 
-                # Add drive components to drive_content using pack
+                # Tytuł napędu z ikoną
                 ttk.Label(
                     drive_content,
                     text=self.get_text('drive_label').format(drive=drive),
                     style='DriveTitle.TLabel'
-                ).pack(fill='x', pady=(0, 10))
+                ).pack(fill='x', pady=(0, 5))
                 
-                # Status container
-                status_frame = ttk.Frame(drive_content)
-                status_frame.pack(fill='x', expand=True)
+                # Status container z ustaloną wysokością
+                status_container = ttk.Frame(drive_content)
+                status_container.pack(fill='both', expand=True, pady=(0, 5))
                 
-                # Status labels
+                # Główny status z większym wraplength
                 self.status_labels[drive] = ttk.Label(
-                    status_frame,
+                    status_container,
                     text=f"{self.get_text('status_prefix')}{self.get_text('waiting')}",
-                    style='Header.TLabel'
+                    style='Header.TLabel',
+                    wraplength=self.DRIVE_CARD_WIDTH - (2 * self.DRIVE_CARD_PADDING)
                 )
-                self.status_labels[drive].pack(fill='x')
+                self.status_labels[drive].pack(fill='x', pady=(0, 2))
                 
+                # Dodatkowy status z większym wraplength
                 self.substatus_labels[drive] = ttk.Label(
-                    status_frame,
+                    status_container,
                     text=self.get_text('insert_disc'),
-                    style='Info.TLabel'
+                    style='Info.TLabel',
+                    wraplength=self.DRIVE_CARD_WIDTH - (2 * self.DRIVE_CARD_PADDING)
                 )
                 self.substatus_labels[drive].pack(fill='x')
                 
-                # Progress bar
+                # Progress bar zawsze na dole
                 self.progress_bars[drive] = ttk.Progressbar(
                     drive_content,
                     style="Modern.Horizontal.TProgressbar",
                     mode='determinate'
                 )
-                self.progress_bars[drive].pack(fill='x', pady=(10, 0))
+                self.progress_bars[drive].pack(fill='x', side='bottom')
             
             self.log('total_drives_detected', True, count=len(self.drives))
             if not self.drives:
@@ -505,7 +593,10 @@ class DiskCopier:
                 self.update_status(drive, "waiting", "insert_disc", 0)
                 if os.path.exists(drive) and os.listdir(drive):
                     self.update_status(drive, "initialization", "preparing", 0)
-                    folder_name = datetime.now().strftime(f"Plyta_{drive[0]}_%Y%m%d_%H%M%S")
+                    
+                    # Get Windows username
+                    username = os.getenv('USERNAME')
+                    folder_name = datetime.now().strftime(f"Plyta_{drive[0]}_{username}_%Y%m%d_%H%M%S")
                     destination_folder = os.path.join(self.destination_root, folder_name)
                     
                     if not os.path.exists(destination_folder):

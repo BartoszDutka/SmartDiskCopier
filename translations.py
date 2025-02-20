@@ -32,7 +32,10 @@ TRANSLATIONS = {
         'drive_ejected': "Napęd {drive} został wysunięty",
         'drive_eject_error': "Błąd podczas wysuwania napędu {drive}: {error}",
         'copied_content': "Skopiowano zawartość z {drive} do {folder}",
-        'icon_load_error': "Nie można załadować ikony: {error}"
+        'icon_load_error': "Nie można załadować ikony: {error}",
+        'detected_drive_remote': "Wykryto przekierowany napęd RDP: {drive}",
+        'remote_drive_check_error': "Błąd podczas sprawdzania napędów zdalnych: {error}",
+        'drive_check_error': "Błąd sprawdzania napędu {drive}: {error}",
     },
     'en': {
         'window_title': "Disc Copy",
@@ -67,6 +70,9 @@ TRANSLATIONS = {
         'drive_ejected': "Drive {drive} has been ejected",
         'drive_eject_error': "Error ejecting drive {drive}: {error}",
         'copied_content': "Copied content from {drive} to {folder}",
-        'icon_load_error': "Cannot load icon: {error}"
+        'icon_load_error': "Cannot load icon: {error}",
+        'detected_drive_remote': "Detected RDP redirected drive: {drive}",
+        'remote_drive_check_error': "Error checking remote drives: {error}",
+        'drive_check_error': "Error checking drive {drive}: {error}",
     }
 }
