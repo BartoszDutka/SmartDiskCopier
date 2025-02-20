@@ -20,13 +20,12 @@ class DiskCopier:
         self.current_language = 'pl'
         self.root.title(self.get_text('window_title'))
         
-        # Dynamiczne ustawienie rozmiaru okna
+        # Zmniejszone okno do 70% ekranu
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        window_width = int(screen_width * 0.8)  # 80% szerokości ekranu
-        window_height = int(screen_height * 0.8)  # 80% wysokości ekranu
+        window_width = int(screen_width * 0.7)
+        window_height = int(screen_height * 0.7)
         
-        # Wycentrowanie okna
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         
@@ -59,39 +58,38 @@ class DiskCopier:
         self.style.configure('Card.TLabelframe.Label',
                            background=self.colors['primary'],
                            foreground='white',
-                           font=('Segoe UI', 11, 'bold'),
-                           padding=15)
+                           font=('Segoe UI', 10, 'bold'),
+                           padding=5)
         
         # Style dla przycisków
         self.style.configure('Action.TButton',
-                           font=('Segoe UI', 10),
-                           padding=15,
-                           background=self.colors['secondary'])
+                           font=('Segoe UI', 9),
+                           padding=5)
         
         # Style dla etykiet
         self.style.configure('DriveTitle.TLabel',
-                           font=('Segoe UI', 12, 'bold'),
+                           font=('Segoe UI', 10, 'bold'),
                            background=self.colors['primary'],
                            foreground='white',
-                           padding=15)
+                           padding=5)
         
         self.style.configure('Header.TLabel',
-                           font=('Segoe UI', 11, 'bold'),
+                           font=('Segoe UI', 10, 'bold'),
                            background=self.colors['surface'],
                            foreground=self.colors['primary'],
-                           padding=10)
+                           padding=3)
         
         self.style.configure('Info.TLabel',
-                           font=('Segoe UI', 10),
+                           font=('Segoe UI', 9),
                            background=self.colors['surface'],
                            foreground=self.colors['text_secondary'],
-                           padding=5)
+                           padding=2)
         
         # Styl dla paska postępu
         self.style.configure("Modern.Horizontal.TProgressbar",
                            troughcolor=self.colors['background'],
                            background=self.colors['secondary'],
-                           thickness=15)
+                           thickness=10)
 
         self.destination_root = os.path.join(os.path.expanduser('~'), 'Desktop', 'DiscCopies')
         self.drives = []
@@ -154,16 +152,16 @@ class DiskCopier:
         
         # Kontenery na elementy interfejsu
         controls_frame = ttk.Frame(self.main_container)
-        controls_frame.pack(fill='x', pady=(0, 10))
+        controls_frame.pack(fill='x', pady=(0, 5))
         
         # Panel językowy
         lang_frame = ttk.LabelFrame(
             controls_frame,
             text="",
             style='Card.TLabelframe',
-            padding=10
+            padding=5
         )
-        lang_frame.pack(fill='x', padx=5, pady=5)
+        lang_frame.pack(fill='x', padx=3, pady=2)
         
         # Kontener na przyciski języków
         lang_buttons_frame = ttk.Frame(lang_frame)
@@ -256,13 +254,13 @@ class DiskCopier:
         
         self.log_text = ScrolledText(
             log_frame,
-            height=8,
-            font=('Consolas', 9),
+            height=5,  # Zmniejszona wysokość
+            font=('Consolas', 8),  # Mniejsza czcionka
             background=self.colors['surface'],
             foreground=self.colors['text'],
             relief='flat',
-            padx=10,
-            pady=10
+            padx=5,
+            pady=5
         )
         self.log_text.pack(fill='both', expand=True)
 
@@ -378,7 +376,7 @@ class DiskCopier:
             # Metoda 1: Używając WMI
             c = wmi.WMI()
             for cdrom in c.Win32_CDROMDrive():
-                if cdrom.Drive:
+                if (cdrom.Drive):
                     drive_path = cdrom.Drive + "\\"
                     if drive_path not in self.drives:
                         self.drives.append(drive_path)
@@ -419,9 +417,9 @@ class DiskCopier:
                     drive_container,
                     text="",
                     style='Card.TLabelframe',
-                    padding=15
+                    padding=5  # Zmniejszony padding
                 )
-                drive_card.grid(row=row, column=col, padx=10, pady=10, sticky='nsew')
+                drive_card.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
                 
                 # Create inner frame for drive content
                 drive_content = ttk.Frame(drive_card)
