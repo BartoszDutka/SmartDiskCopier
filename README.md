@@ -136,9 +136,6 @@ Contributions are welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -153,7 +150,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Contact author for serious matters
 
 ---
-<div align="center">
-Made with ❤️ for making disc copying easier
-</div>
 
