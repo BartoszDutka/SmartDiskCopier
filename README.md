@@ -20,6 +20,34 @@ A modern Windows application for automated CD/DVD disc copying with multi-drive 
 - 📊 Real-time progress monitoring for each drive
 - 📝 Detailed operation logging
 - 💾 Automatic folder naming with timestamps and usernames
+- 🔵 System tray support with progress indication
+- 📦 Optional ZIP archiving of copied content
+- 🚀 Runs in background with minimized window
+- 🔔 System notifications for important events
+- ⚙️ External configuration file for easy settings adjustment
+
+## 🎯 New Features
+
+### System Tray Integration
+- Minimizes to system tray with active icon
+- Shows copy progress in tray icon
+- Context menu for quick actions
+- System notifications for copy events
+
+### ZIP Archive Support
+- Optional ZIP creation after copying
+- Configurable through GUI and config file
+- Preserves folder structure in archives
+
+### External Configuration
+- Settings stored in external config.json
+- Can be modified even after compilation
+- Persists user preferences between runs
+
+### Background Operation
+- Continues copying when minimized
+- Automatic minimization during copy
+- Shows/hides window on demand
 
 ## 🔧 Requirements
 
@@ -126,6 +154,10 @@ To create a portable version:
    - Ensure sufficient disk space
    - Verify write permissions
 
+## ⚙️ Configuration
+
+The `config.json` file controls various program settings:
+
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -156,4 +188,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
 Made with ❤️ for making disc copying easier
 </div>
+````
 
