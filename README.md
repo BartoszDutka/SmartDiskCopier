@@ -1,189 +1,181 @@
-# SmartDiskCopier 💿
+# SmartDiskCopier
 
-A modern Windows application for automated CD/DVD disc copying with multi-drive support, network drive support, and real-time progress tracking.
+SmartDiskCopier is a Windows desktop application for automatically copying
+files from optical discs to a selected destination. It can monitor multiple
+CD/DVD drives at the same time, including drives redirected through Remote
+Desktop, and provides live progress information for each drive.
 
 <div align="center">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Platform](https://img.shields.io/badge/platform-Windows-blue)
-![Python](https://img.shields.io/badge/Python-3.7+-green.svg)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue)](https://www.microsoft.com/windows)
+[![Python](https://img.shields.io/badge/Python-3.7%2B-green)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-yellow)](https://opensource.org/licenses/MIT)
 
 </div>
 
-## ✨ Features
+## Features
 
-- 🖥️ Modern, user-friendly interface with dark mode support
-- 📀 Support for multiple CD/DVD drives simultaneously
-- 🌐 Network and RDP-redirected drive support
-- 🔄 Automatic disc ejection after copying
-- 🌍 Multilingual (English and Polish)
-- 📊 Real-time progress monitoring for each drive
-- 📝 Detailed operation logging
-- 💾 Automatic folder naming with timestamps and usernames
-- 🔵 System tray support with progress indication
-- 📦 Optional ZIP archiving of copied content
-- 🚀 Runs in background with minimized window
-- 🔔 System notifications for important events
-- ⚙️ External configuration file for easy settings adjustment
+- Detects physical, network, and RDP-redirected CD/DVD drives.
+- Monitors multiple drives concurrently.
+- Copies complete disc contents while preserving the directory structure.
+- Creates timestamped destination folders containing the drive letter and
+  Windows username.
+- Shows per-drive status and copy progress in the graphical interface.
+- Automatically ejects a disc after copying.
+- Optionally creates a ZIP archive of the copied folder.
+- Can delete the copied source folder after a successful ZIP operation when
+  that option is enabled.
+- Supports English and Polish.
+- Runs in the Windows system tray and displays copy notifications.
+- Stores the destination, language, and archive preference in `config.json`.
+- Supports both source execution and a standalone PyInstaller executable.
 
-## 🎯 New Features
+## Requirements
 
-### System Tray Integration
-- Minimizes to system tray with active icon
-- Shows copy progress in tray icon
-- Context menu for quick actions
-- System notifications for copy events
+- Windows 10 or newer is recommended.
+- Python 3.7 or newer.
+- Access to at least one CD/DVD drive, physical or redirected.
+- Write access to the selected destination folder.
+- Enough free disk space for the copied files and any optional ZIP archive.
 
-### ZIP Archive Support
-- Optional ZIP creation after copying
-- Configurable through GUI and config file
-- Preserves folder structure in archives
+## Installation
 
-### External Configuration
-- Settings stored in external config.json
-- Can be modified even after compilation
-- Persists user preferences between runs
+Clone the repository and install the Python dependencies:
 
-### Background Operation
-- Continues copying when minimized
-- Automatic minimization during copy
-- Shows/hides window on demand
+```powershell
+git clone https://github.com/BartoszDutka/SmartDiskCopier.git
+cd SmartDiskCopier
+python -m pip install -r requirements.txt
+```
 
-## 🔧 Requirements
+## Running from Source
 
-- Windows operating system
-- Python 3.7 or newer
-- CD/DVD drive(s) - physical or network/RDP redirected
+Start the application with:
 
-## 🚀 Quick Start
+```powershell
+python SmartDiskCopier.py
+```
 
-### Installation
+When the application starts, it detects available drives automatically. Choose
+the destination folder, insert a disc, and the copy process will begin when
+the disc is detected.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/SmartDiskCopier.git
-   cd SmartDiskCopier
-   ```
+The application can be minimized to the system tray while copying. Use the
+tray menu to show the window, hide it again, or exit the application.
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Building the Executable
 
-### Running
+Install the dependencies and run the included build script:
 
-1. **Run directly with Python**
-   ```bash
-   python SmartDiskCopier.py
-   ```
+```powershell
+python build_exe.py
+```
 
-2. **Or build executable**
-   ```bash
-   python build_exe.py
-   ```
-   The executable will be created in the `dist` folder.
+The script creates a one-file, windowed executable in the `dist` directory and
+copies `config.json` next to it. The configuration file must remain next to
+the executable so that settings can be loaded and saved.
 
-### Building Executable
+The generated executable is intended for Windows and does not require Python
+to be installed on the target machine.
 
-1. **Install PyInstaller**
-   ```bash
-   pip install pyinstaller
-   ```
+## Configuration
 
-2. **Build using included script**
-   ```bash
-   python build_exe.py
-   ```
-   This will create `SmartDiskCopier.exe` in the `dist` folder.
+Settings are stored in `config.json`:
 
-3. **Manual build (alternative)**
-   ```bash
-   pyinstaller SmartDiskCopier.py --name=SmartDiskCopier --onefile --windowed --icon=app_icon.ico --add-data="translations.py;." --clean
-   ```
+```json
+{
+    "target_path": "C:\\\\Users\\\\Public\\\\CopiedDiscs",
+    "default_language": "en",
+    "version": "1.0.0",
+    "create_zip": false
+}
+```
 
-4. **After building**
-   - Executable will be in the `dist` folder
-   - You can move the .exe file anywhere
-   - No additional files needed to run
-   - Double-click to launch
+| Setting | Description |
+| --- | --- |
+| `target_path` | Root folder where timestamped disc folders are created. Local paths and accessible UNC paths are supported. |
+| `default_language` | Startup language: `en` or `pl`. |
+| `version` | Configuration version value. |
+| `create_zip` | Whether to create a ZIP archive after copying: `true` or `false`. |
 
-### Portable Version
+The destination and language can also be changed in the application. Changes
+are saved when the application exits.
 
-To create a portable version:
-1. Build the executable
-2. Copy `SmartDiskCopier.exe` to a USB drive
-3. Create a `config.ini` file (optional) in the same folder to store settings
+## Output Structure
 
-## 💡 Usage
+For each detected disc, SmartDiskCopier creates a folder similar to:
 
-1. Launch the application
-2. Select your preferred language (English/Polish)
-3. Choose destination folder for copied files
-4. Insert a disc into any CD/DVD drive
-5. The application will automatically:
-   - Detect the disc
-   - Create a timestamped folder with username
-   - Copy all contents
-   - Eject the disc when finished
-6. Repeat with next disc if needed
+```text
+<target_path>\
+└── Plyta_D_<username>_20250220_103015\
+    ├── autorun.inf
+    ├── Documents\
+    └── ...
+```
+
+The folder name includes the source drive letter, the Windows username, and a
+timestamp. If ZIP creation is enabled, the archive is created in the
+destination folder after the copy completes.
 
 ## Screenshots
 
-### Main Window
-![Main Interface](screenshots/main_interface.png)
+### Main Interface
 
-### Active Copying Process
-![Copying Process](screenshots/copying_process.png)
+![SmartDiskCopier main interface](screenshots/main_interface.png)
 
-## 🔍 Troubleshooting
+### Copying Process
 
-### Common Issues
+![SmartDiskCopier copying process](screenshots/copying_process.png)
 
-1. **Missing dependencies**
-   ```bash
-   pip install --upgrade ttkthemes wmi pywin32
-   ```
+## Troubleshooting
 
-2. **Drive not detected**
-   - Check if drive is visible in Windows
-   - For RDP drives, ensure proper redirection
-   - Verify administrator privileges
+### No drive is detected
 
-3. **Copy errors**
-   - Check disc for damage
-   - Ensure sufficient disk space
-   - Verify write permissions
+- Confirm that the drive is visible in Windows File Explorer.
+- Check that a disc is inserted and readable.
+- For RDP drives, enable local drive redirection in the Remote Desktop
+  connection settings.
+- Use **Refresh Drives** in the application.
 
-## ⚙️ Configuration
+### Copying fails
 
-The `config.json` file controls various program settings:
+- Check the disc for damage or read errors.
+- Confirm that the destination is reachable and writable.
+- Verify that there is enough free disk space.
+- For a network destination, check the UNC path and network connection.
 
-## 🤝 Contributing
+### ZIP creation fails
 
-Contributions are welcome! Here's how you can help:
+- Confirm that the destination has enough free space for a second copy of the
+  data.
+- Check that the destination folder is not locked by another application.
+- Disable ZIP creation in the interface or set `create_zip` to `false`.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Project Files
 
-## 📄 License
+| File | Purpose |
+| --- | --- |
+| `SmartDiskCopier.py` | Main application and copy logic |
+| `translations.py` | English and Polish interface translations |
+| `config.json` | Runtime configuration |
+| `build_exe.py` | PyInstaller build script |
+| `SmartDiskCopier.spec` | PyInstaller specification |
+| `app_icon.ico` | Application icon |
+| `version_info.txt` | Windows executable version metadata |
+| `screenshots/` | Application screenshots |
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Contributing
 
-## 🙏 Acknowledgments
+Contributions are welcome:
 
-- Thanks to all contributors and users
-- Built with Python and Tkinter
-- Uses modern themes from ttkthemes
+1. Fork the repository.
+2. Create a feature branch:
+   `git checkout -b feature/your-feature`.
+3. Make and test your changes.
+4. Commit the changes.
+5. Open a pull request.
 
-## 📞 Support
+## License
 
-- Open an issue for bugs
-- Submit feature requests via issues
-- Contact author for serious matters
-
----
-
-
+This project is released under the MIT License. Add the project license file
+to the repository before distributing a licensed release.
