@@ -1,6 +1,7 @@
 import os
 import shutil
 import time
+import queue
 from datetime import datetime
 import ctypes
 import threading
@@ -8,16 +9,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from tkinter.scrolledtext import ScrolledText
 from ttkthemes import ThemedTk
-import wmi  # Dodaj ten import
-import string  # dodaj ten import
 import sys
 import os.path
 from translations import TRANSLATIONS  # Dodaj import tłumaczeń
 import json
 import tkinter.messagebox as messagebox  # Dodaj ten import na początku pliku
-from PIL import Image, ImageTk
-import pystray
-from PIL import Image, ImageDraw
 import zipfile
 
 def resource_path(relative_path):
@@ -31,6 +27,10 @@ def resource_path(relative_path):
 
 class DiskCopier:
     def __init__(self):
+        self.ui_queue = queue.Queue()
+        self.ui_queue_lock = threading.Lock()
+        self.pending_statuses = {}
+        self.ui_thread_id = threading.get_ident()
         self.config_path = self.get_config_path()
         self.config = self.load_config()
         self.root = ThemedTk(theme="azure")
@@ -38,10 +38,7 @@ class DiskCopier:
         self.root.title(self.get_text('window_title'))
         self.refresh_button = None  # Dodaj tę linię na początku __init__
         self.exit_button = None  # Dodaj tę linię
-        self.icon = None  # Ikona w tray'u
         self.is_copying = False  # Stan kopiowania
-        self.is_minimized = False  # Stan zminimalizowania
-        self.current_progress = 0  # Dodaj tę linię
         self.create_zip = self.config.get('create_zip', True)
         self.delete_after_zip = self.config.get('delete_after_zip', False)
         self.is_exiting = False  # Dodaj flagę zamykania
@@ -49,13 +46,14 @@ class DiskCopier:
         # Zmniejszone okno do 70% ekranu
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        window_width = int(screen_width * 0.7)
-        window_height = int(screen_height * 0.7)
+        window_width = int(screen_width * 0.72)
+        window_height = int(screen_height * 0.74)
         
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.root.minsize(900, 620)
         
         # Konfiguracja zachowania przy zmianie rozmiaru
         self.root.grid_rowconfigure(0, weight=1)
@@ -77,6 +75,15 @@ class DiskCopier:
         
         # Konfiguracja stylów
         self.style.configure('Main.TFrame', background=self.colors['background'])
+        self.style.configure('Toolbar.TFrame', background=self.colors['surface'])
+        self.style.configure('Title.TLabel',
+                           font=('Segoe UI', 16, 'bold'),
+                           background=self.colors['surface'],
+                           foreground=self.colors['primary'])
+        self.style.configure('Subtitle.TLabel',
+                           font=('Segoe UI', 9),
+                           background=self.colors['surface'],
+                           foreground=self.colors['text_secondary'])
         self.style.configure('Card.TLabelframe',
                            background=self.colors['surface'],
                            borderwidth=0,
@@ -90,7 +97,10 @@ class DiskCopier:
         # Style dla przycisków
         self.style.configure('Action.TButton',
                            font=('Segoe UI', 9),
-                           padding=5)
+                           padding=(10, 6))
+        self.style.configure('Primary.TButton',
+                           font=('Segoe UI', 9, 'bold'),
+                           padding=(12, 7))
         
         # Style dla etykiet
         self.style.configure('DriveTitle.TLabel',
@@ -136,7 +146,8 @@ class DiskCopier:
         self.style.configure('DriveCard.TLabelframe',
                            background=self.colors['surface'],
                            borderwidth=1,
-                           relief='solid')
+                           relief='solid',
+                           padding=8)
         
         self.style.configure('StatusFrame.TFrame',
                            background=self.colors['surface'],
@@ -147,6 +158,7 @@ class DiskCopier:
         self.detect_drives()  # Pierwsze wykrycie napędów
         
         self.start_monitoring()
+        self.root.after(100, self.process_ui_queue)
 
     def get_config_path(self):
         """Zwraca ścieżkę do pliku konfiguracyjnego"""
@@ -195,55 +207,48 @@ class DiskCopier:
             self.log('config_save_error', True, error=str(e))
 
     def setup_gui(self):
-        # Konfiguracja głównego kontenera
         self.main_container = ttk.Frame(self.root, style='Main.TFrame')
         self.main_container.pack(fill='both', expand=True, padx=10, pady=10)
         
-        # Kontenery na elementy interfejsu
         controls_frame = ttk.Frame(self.main_container)
         controls_frame.pack(fill='x', pady=(0, 5))
 
-        # Górny pasek z przyciskami
-        top_buttons_frame = ttk.Frame(controls_frame)
+        top_buttons_frame = ttk.Frame(controls_frame, style='Toolbar.TFrame')
         top_buttons_frame.pack(fill='x', pady=(0, 5))
 
-        # Przycisk minimalizacji (nowy)
-        self.minimize_button = ttk.Button(
-            top_buttons_frame,
-            text=self.get_text('hide_window'),
-            command=self.hide_window,
-            style='Action.TButton'
-        )
-        self.minimize_button.pack(side='right', padx=5)
+        title_frame = ttk.Frame(top_buttons_frame, style='Toolbar.TFrame')
+        title_frame.pack(side='left', fill='x', expand=True, padx=12, pady=8)
+        ttk.Label(
+            title_frame,
+            text=self.get_text('window_title'),
+            style='Title.TLabel'
+        ).pack(anchor='w')
+        ttk.Label(
+            title_frame,
+            text='Automatyczne kopiowanie zawartości płyt',
+            style='Subtitle.TLabel'
+        ).pack(anchor='w', pady=(2, 0))
 
-        # Przycisk wyjścia w górnym pasku
         self.exit_button = ttk.Button(
             top_buttons_frame,
             text=self.get_text('exit_btn'),
             command=self.confirm_exit,
             style='Action.TButton'
         )
-        self.exit_button.pack(side='right', padx=5)
+        self.exit_button.pack(side='right', padx=12, pady=12)
 
-        # Panel językowy
-        lang_frame = ttk.LabelFrame(
-            controls_frame,
-            text="",
-            style='Card.TLabelframe',
-            padding=5
-        )
-        lang_frame.pack(fill='x', pady=2)
-        
-        # Kontener na przyciski języków
-        lang_buttons_frame = ttk.Frame(lang_frame)
-        lang_buttons_frame.pack(fill='x')
+        settings_frame = ttk.Frame(controls_frame)
+        settings_frame.pack(fill='x', pady=(0, 5))
+
+        lang_buttons_frame = ttk.Frame(settings_frame)
+        lang_buttons_frame.pack(side='left', padx=(5, 15))
         
         self.current_lang_label = ttk.Label(
             lang_buttons_frame,
             text=self.get_text('current_lang'),
-            style='Header.TLabel'
+            style='Info.TLabel'
         )
-        self.current_lang_label.pack(side='left', padx=5)
+        self.current_lang_label.pack(side='left', padx=(0, 5))
 
         # Przyciski języków
         for lang in ['pl', 'en']:
@@ -256,12 +261,11 @@ class DiskCopier:
             btn.pack(side='left', padx=2)
             self.language_buttons[lang] = btn
 
-        # Panel wyboru folderu
         folder_frame = ttk.LabelFrame(
             controls_frame,
             text="",
             style='Card.TLabelframe',
-            padding=10
+            padding=(12, 8)
         )
         folder_frame.pack(fill='x', padx=5, pady=5)
 
@@ -277,12 +281,13 @@ class DiskCopier:
         self.folder_label.pack(side='left')
         
         self.folder_path = tk.StringVar(value=self.destination_root)
-        ttk.Entry(
+        folder_entry = ttk.Entry(
             folder_content,
             textvariable=self.folder_path,
-            width=50,
+            width=1,
             font=('Segoe UI', 9)
-        ).pack(side='left', padx=10)
+        )
+        folder_entry.pack(side='left', padx=10, fill='x', expand=True)
         
         self.choose_button = ttk.Button(
             folder_content,
@@ -292,16 +297,8 @@ class DiskCopier:
         )
         self.choose_button.pack(side='left')
 
-        # Po kontrolkach folderu docelowego, dodaj opcje ZIP
-        zip_frame = ttk.LabelFrame(
-            controls_frame,
-            text="",
-            style='Card.TLabelframe',
-            padding=5
-        )
-        zip_frame.pack(fill='x', pady=2)
-        
-        # Checkboxy dla opcji ZIP
+        zip_frame = ttk.Frame(settings_frame)
+        zip_frame.pack(side='left', fill='x', expand=True)
         self.create_zip_var = tk.BooleanVar(value=self.create_zip)
         self.delete_after_zip_var = tk.BooleanVar(value=self.delete_after_zip)
         
@@ -310,35 +307,33 @@ class DiskCopier:
             text=self.get_text('create_zip'),
             variable=self.create_zip_var,
             command=self.save_zip_settings
-        ).pack(side='left', padx=5)
+        ).pack(side='left', padx=(0, 10))
         
         ttk.Checkbutton(
             zip_frame,
             text=self.get_text('delete_after_zip'),
             variable=self.delete_after_zip_var,
             command=self.save_zip_settings
-        ).pack(side='left', padx=5)
+        ).pack(side='left')
 
-        # Przycisk odświeżania (zmodyfikuj tę część)
         self.refresh_button = ttk.Button(
-            controls_frame,
+            settings_frame,
             text=self.get_text('refresh_drives'),
             command=self.detect_drives,
-            style='Action.TButton'
+            style='Primary.TButton'
         )
-        self.refresh_button.pack(pady=(0, 10))
+        self.refresh_button.pack(side='right', padx=5)
 
         # Ramka na napędy
-        drives_container = ttk.LabelFrame(
+        self.drives_container = ttk.LabelFrame(
             self.main_container,
             text=self.get_text('drives_frame'),
             style='Card.TLabelframe',
-            padding=15
+            padding=10
         )
-        drives_container.pack(fill='both', expand=True, padx=10, pady=5)
+        self.drives_container.pack(fill='both', expand=True, padx=5, pady=5)
         
-        # Create inner frame for drives
-        self.drives_frame = ttk.Frame(drives_container, style='Main.TFrame')
+        self.drives_frame = ttk.Frame(self.drives_container, style='Main.TFrame')
         self.drives_frame.pack(fill='both', expand=True)
 
         # Panel logów
@@ -346,14 +341,14 @@ class DiskCopier:
             self.main_container,
             text="Log",
             style='Card.TLabelframe',
-            padding=15
+            padding=10
         )
-        log_frame.pack(fill='x', padx=10, pady=(5, 10))
+        log_frame.pack(fill='x', padx=5, pady=(5, 0))
         
         self.log_text = ScrolledText(
             log_frame,
-            height=5,  # Zmniejszona wysokość
-            font=('Consolas', 8),  # Mniejsza czcionka
+            height=4,
+            font=('Consolas', 8),
             background=self.colors['surface'],
             foreground=self.colors['text'],
             relief='flat',
@@ -391,12 +386,7 @@ class DiskCopier:
         if self.refresh_button:
             self.refresh_button.config(text=self.get_text('refresh_drives'))
         
-        # Find drives container and update its text
-        for widget in self.main_container.winfo_children():
-            if isinstance(widget, ttk.LabelFrame) and widget.winfo_children() and \
-               isinstance(widget.winfo_children()[0], ttk.Frame):
-                widget.configure(text=self.get_text('drives_frame'))
-                break
+        self.drives_container.configure(text=self.get_text('drives_frame'))
         
         # Aktualizacja etykiet i przycisków folderu
         self.folder_label.config(text=self.get_text('target_folder'))
@@ -446,16 +436,19 @@ class DiskCopier:
         if self.exit_button:
             self.exit_button.config(text=self.get_text('exit_btn'))
 
-        # Aktualizacja przycisku minimalizacji
-        if hasattr(self, 'minimize_button'):
-            self.minimize_button.config(text=self.get_text('hide_window'))
-
     def log(self, message, translate=True, **kwargs):
         """
         Rozszerzona metoda logowania z obsługą tłumaczeń
         translate: czy wiadomość ma być tłumaczona
         kwargs: parametry do formatowania wiadomości
         """
+        if threading.get_ident() != self.ui_thread_id:
+            self.ui_queue.put(('log', (message, translate, kwargs)))
+            return
+
+        self._log_on_ui_thread(message, translate, kwargs)
+
+    def _log_on_ui_thread(self, message, translate, kwargs):
         if translate:
             translated_message = self.get_text(message).format(**kwargs) if kwargs else self.get_text(message)
         else:
@@ -649,6 +642,16 @@ class DiskCopier:
 
     def update_status(self, drive, main_status, sub_status="", progress=None):
         """Aktualizacja obu statusów i paska postępu z tłumaczeniami"""
+        if threading.get_ident() != self.ui_thread_id:
+            with self.ui_queue_lock:
+                was_pending = drive in self.pending_statuses
+                self.pending_statuses[drive] = (drive, main_status, sub_status, progress)
+            if not was_pending:
+                self.ui_queue.put(('status', drive))
+            return
+        self._update_status_on_ui_thread(drive, main_status, sub_status, progress)
+
+    def _update_status_on_ui_thread(self, drive, main_status, sub_status="", progress=None):
         if drive in self.status_labels:
             # Zapisz aktualny status
             self.current_statuses[drive] = {
@@ -677,34 +680,31 @@ class DiskCopier:
             self.substatus_labels[drive].config(text=translated_substatus)
             if progress is not None:
                 self.progress_bars[drive]['value'] = progress
-            self.root.update_idletasks()
-            
-            # Aktualizacja ikony tray'a
-            if progress is not None:
-                self.update_tray_icon(progress)
         
         # Sprawdź czy rozpoczęło się kopiowanie
         if "copying" in main_status.lower() and not self.is_copying:
             self.is_copying = True
-            if not self.is_minimized:
-                self.hide_window()
-            if self.icon:
-                self.icon.notify(
-                    self.get_text('copying_in_progress'),
-                    self.get_text('minimize_to_tray')
-                )
         
         # Sprawdź czy zakończono kopiowanie
         if "disc_ejected" in main_status.lower() and self.is_copying:
             self.is_copying = False
-            self.update_tray_icon(0)  # Reset ikony po zakończeniu
-            if self.is_minimized:
-                self.show_window()
-            if self.icon:
-                self.icon.notify(
-                    self.get_text('copying_complete'),
-                    self.get_text('window_title')
-                )
+
+    def process_ui_queue(self):
+        """Wykonuje ograniczoną liczbę aktualizacji UI z wątku głównego."""
+        for _ in range(100):
+            try:
+                operation, args = self.ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            if operation == 'status':
+                with self.ui_queue_lock:
+                    status_args = self.pending_statuses.pop(args, None)
+                if status_args:
+                    self._update_status_on_ui_thread(*status_args)
+            elif operation == 'log':
+                self._log_on_ui_thread(*args)
+        if not self.is_exiting:
+            self.root.after(100, self.process_ui_queue)
 
     def copy_disc_content(self, drive):
         try:
@@ -779,11 +779,6 @@ class DiskCopier:
 
     def confirm_exit(self):
         """Pokazuje okno potwierdzenia przed wyjściem z programu"""
-        if self.is_minimized:
-            # Jeśli okno jest zminimalizowane, przywróć je przed pokazaniem dialogu
-            self.show_window()
-        
-        dialog = tk.Toplevel(self.root)
         # Oblicz pozycję okna dialogowego względem głównego okna
         window_x = self.root.winfo_x()
         window_y = self.root.winfo_y()
@@ -853,10 +848,6 @@ class DiskCopier:
         if dialog:
             dialog.destroy()
         
-        # Zatrzymaj ikonę w tray'u
-        if self.icon:
-            self.icon.stop()
-        
         # Zapisz konfigurację przed wyjściem
         self.save_config()
         
@@ -864,77 +855,6 @@ class DiskCopier:
         self.root.quit()
         self.root.destroy()
         sys.exit(0)
-
-    def create_tray_icon(self):
-        """Tworzy ikonę w zasobniku systemowym"""
-        self.update_tray_icon(0)  # Inicjalizacja ikony z 0% postępu
-        
-        def on_click(icon, item):
-            if str(item) == self.get_text('show_window'):
-                self.show_window()
-            elif str(item) == self.get_text('hide_window'):
-                self.hide_window()
-            elif str(item) == self.get_text('exit_btn'):
-                # Wywołaj confirm_exit z głównego wątku
-                self.root.after(0, self.confirm_exit)
-
-        # Utwórz menu kontekstowe
-        menu = (
-            pystray.MenuItem(self.get_text('show_window'), on_click),
-            pystray.MenuItem(self.get_text('hide_window'), on_click),
-            pystray.MenuItem(self.get_text('exit_btn'), on_click)
-        )
-
-        # Utwórz ikonę
-        self.icon = pystray.Icon(
-            "SmartDiskCopier",
-            self.create_progress_icon(0),  # Używamy funkcji tworzącej ikonę
-            self.get_text('tray_tooltip'),
-            menu
-        )
-        self.icon.run_detached()
-
-    def create_progress_icon(self, progress):
-        """Tworzy ikonę z paskiem postępu"""
-        # Tworzymy nowy obraz 64x64 pikseli
-        image = Image.new('RGB', (64, 64), color='white')
-        draw = ImageDraw.Draw(image)
-        
-        # Rysujemy tło
-        draw.rectangle([0, 0, 64, 64], fill='#1976D2')  # Używamy koloru primary z aplikacji
-        
-        if progress > 0:
-            # Obliczamy wysokość wypełnienia na podstawie postępu
-            fill_height = int(64 * (progress / 100))
-            # Rysujemy wypełnienie od dołu
-            draw.rectangle([0, 64-fill_height, 64, 64], fill='#4CAF50')  # Zielony kolor dla postępu
-        
-        return image
-
-    def update_tray_icon(self, progress):
-        """Aktualizuje ikonę w tray z nowym postępem"""
-        if self.icon and 0 <= progress <= 100:
-            self.current_progress = progress
-            self.icon.icon = self.create_progress_icon(progress)
-
-    def hide_window(self):
-        """Chowa okno do tray'a"""
-        if not self.icon:
-            self.create_tray_icon()
-        self.root.withdraw()
-        self.is_minimized = True
-        # Pokaż powiadomienie
-        self.icon.notify(
-            self.get_text('minimize_to_tray'),
-            self.get_text('tray_tooltip')
-        )
-
-    def show_window(self):
-        """Przywraca okno z tray'a"""
-        self.root.deiconify()
-        self.root.lift()
-        self.root.focus_force()
-        self.is_minimized = False
 
     def save_zip_settings(self):
         """Zapisuje ustawienia ZIP do konfiguracji"""
@@ -969,9 +889,8 @@ class DiskCopier:
 
     def run(self):
         """Uruchamia aplikację"""
-        self.create_tray_icon()
         # Dodaj obsługę zamykania okna
-        self.root.protocol('WM_DELETE_WINDOW', self.hide_window)
+        self.root.protocol('WM_DELETE_WINDOW', self.confirm_exit)
         
         try:
             self.root.mainloop()
@@ -982,5 +901,21 @@ class DiskCopier:
 
 if __name__ == "__main__":
     CHECK_DELAY = 15
-    app = DiskCopier()
-    app.run()
+    mutex = ctypes.windll.kernel32.CreateMutexW(
+        None, False, "Global\\SmartDiskCopierSingleInstance"
+    )
+    if ctypes.windll.kernel32.GetLastError() == 183:
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "Aplikacja SmartDiskCopier jest już uruchomiona.",
+            "SmartDiskCopier",
+            0x00000010
+        )
+        ctypes.windll.kernel32.CloseHandle(mutex)
+        sys.exit(0)
+
+    try:
+        app = DiskCopier()
+        app.run()
+    finally:
+        ctypes.windll.kernel32.CloseHandle(mutex)

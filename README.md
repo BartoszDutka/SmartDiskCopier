@@ -26,7 +26,9 @@ Desktop, and provides live progress information for each drive.
 - Can delete the copied source folder after a successful ZIP operation when
   that option is enabled.
 - Supports English and Polish.
-- Runs in the Windows system tray and displays copy notifications.
+- Keeps the application window visible while copying.
+- Uses a compact, responsive layout with a dedicated status area and log panel.
+- Prevents more than one application instance from running.
 - Stores the destination, language, and archive preference in `config.json`.
 - Supports both source execution and a standalone PyInstaller executable.
 
@@ -60,8 +62,8 @@ When the application starts, it detects available drives automatically. Choose
 the destination folder, insert a disc, and the copy process will begin when
 the disc is detected.
 
-The application can be minimized to the system tray while copying. Use the
-tray menu to show the window, hide it again, or exit the application.
+The application remains visible while copying. Close it with the **Exit
+Program** button or the window close button.
 
 ## Building the Executable
 

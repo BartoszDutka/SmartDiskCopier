@@ -2,5 +2,3 @@ ttkthemes
 wmi
 pywin32
 pyinstaller
-pillow>=9.0.0
-pystray>=0.19.0
