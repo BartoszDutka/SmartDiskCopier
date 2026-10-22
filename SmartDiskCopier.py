@@ -14,7 +14,6 @@ import os.path
 from translations import TRANSLATIONS  # Dodaj import tłumaczeń
 import json
 import tkinter.messagebox as messagebox  # Dodaj ten import na początku pliku
-import zipfile
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -39,8 +38,6 @@ class DiskCopier:
         self.refresh_button = None  # Dodaj tę linię na początku __init__
         self.exit_button = None  # Dodaj tę linię
         self.is_copying = False  # Stan kopiowania
-        self.create_zip = self.config.get('create_zip', True)
-        self.delete_after_zip = self.config.get('delete_after_zip', False)
         self.is_exiting = False  # Dodaj flagę zamykania
         
         # Zmniejszone okno do 70% ekranu
@@ -182,8 +179,7 @@ class DiskCopier:
             default_config = {
                 "target_path": r"\\qnap4\d-plytki\Plytki",
                 "default_language": "pl",
-                "version": "1.0.0",
-                "create_zip": True
+                "version": "1.0.0"
             }
             self.save_config(default_config)
             return default_config
@@ -197,8 +193,7 @@ class DiskCopier:
             config_data = {
                 "target_path": self.destination_root,
                 "default_language": self.current_language,
-                "version": "1.0.0",
-                "create_zip": self.create_zip
+                "version": "1.0.0"
             }
         try:
             with open(self.config_path, 'w', encoding='utf-8') as f:
@@ -223,11 +218,12 @@ class DiskCopier:
             text=self.get_text('window_title'),
             style='Title.TLabel'
         ).pack(anchor='w')
-        ttk.Label(
+        self.app_subtitle_label = ttk.Label(
             title_frame,
-            text='Automatyczne kopiowanie zawartości płyt',
+            text=self.get_text('app_subtitle'),
             style='Subtitle.TLabel'
-        ).pack(anchor='w', pady=(2, 0))
+        )
+        self.app_subtitle_label.pack(anchor='w', pady=(2, 0))
 
         self.exit_button = ttk.Button(
             top_buttons_frame,
@@ -296,25 +292,6 @@ class DiskCopier:
             style='Action.TButton'
         )
         self.choose_button.pack(side='left')
-
-        zip_frame = ttk.Frame(settings_frame)
-        zip_frame.pack(side='left', fill='x', expand=True)
-        self.create_zip_var = tk.BooleanVar(value=self.create_zip)
-        self.delete_after_zip_var = tk.BooleanVar(value=self.delete_after_zip)
-        
-        ttk.Checkbutton(
-            zip_frame,
-            text=self.get_text('create_zip'),
-            variable=self.create_zip_var,
-            command=self.save_zip_settings
-        ).pack(side='left', padx=(0, 10))
-        
-        ttk.Checkbutton(
-            zip_frame,
-            text=self.get_text('delete_after_zip'),
-            variable=self.delete_after_zip_var,
-            command=self.save_zip_settings
-        ).pack(side='left')
 
         self.refresh_button = ttk.Button(
             settings_frame,
@@ -387,6 +364,7 @@ class DiskCopier:
             self.refresh_button.config(text=self.get_text('refresh_drives'))
         
         self.drives_container.configure(text=self.get_text('drives_frame'))
+        self.app_subtitle_label.config(text=self.get_text('app_subtitle'))
         
         # Aktualizacja etykiet i przycisków folderu
         self.folder_label.config(text=self.get_text('target_folder'))
@@ -748,11 +726,6 @@ class DiskCopier:
                     self.update_status(drive, "finishing", "ejecting", 100)
                     self.log('copied_content', drive=drive, folder=destination_folder)
                     
-                    # Jeśli włączona jest opcja ZIP, utwórz archiwum
-                    if self.create_zip:
-                        self.update_status(drive, "creating_zip", "", 100)
-                        self.create_zip_archive(destination_folder)
-                    
                     self.eject_drive(drive)
                     
                     # Reset statusu po wysunięciu
@@ -855,37 +828,6 @@ class DiskCopier:
         self.root.quit()
         self.root.destroy()
         sys.exit(0)
-
-    def save_zip_settings(self):
-        """Zapisuje ustawienia ZIP do konfiguracji"""
-        self.create_zip = self.create_zip_var.get()
-        self.delete_after_zip = self.delete_after_zip_var.get()
-        self.save_config()
-
-    def create_zip_archive(self, source_folder):
-        """Tworzy archiwum ZIP z folderu"""
-        try:
-            zip_path = source_folder + '.zip'
-            self.log('creating_zip', True)
-            
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for root, _, files in os.walk(source_folder):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, source_folder)
-                        zipf.write(file_path, arcname)
-            
-            self.log('zip_complete', True)
-            
-            # Usuń oryginalne pliki jeśli opcja jest włączona
-            if self.delete_after_zip:
-                self.log('deleting_files', True)
-                shutil.rmtree(source_folder)
-                
-            return True
-        except Exception as e:
-            self.log('zip_error', True, error=str(e))
-            return False
 
     def run(self):
         """Uruchamia aplikację"""

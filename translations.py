@@ -1,6 +1,7 @@
 TRANSLATIONS = {
     'pl': {
         'window_title': "Kopiowanie Płyt",
+        'app_subtitle': "Automatyczne kopiowanie zawartości płyt",
         'refresh_drives': "Odśwież napędy",
         'target_folder': "Folder docelowy:",
         'choose_btn': "Wybierz",
@@ -42,15 +43,10 @@ TRANSLATIONS = {
         'exit_btn': "Zakończ program",
         'exit_confirm': "Czy na pewno chcesz zakończyć program?",
         'exit_confirm_title': "Potwierdzenie wyjścia",
-        'create_zip': "Twórz archiwum ZIP",
-        'delete_after_zip': "Usuń pliki po spakowaniu",
-        'creating_zip': "Tworzenie archiwum ZIP...",
-        'zip_complete': "Archiwum ZIP utworzone",
-        'deleting_files': "Usuwanie oryginalnych plików...",
-        'zip_error': "Błąd podczas tworzenia archiwum: {error}",
     },
     'en': {
         'window_title': "Disc Copy",
+        'app_subtitle': "Automatic optical disc copying",
         'refresh_drives': "Refresh Drives",
         'target_folder': "Target folder:",
         'choose_btn': "Choose",
@@ -92,11 +88,5 @@ TRANSLATIONS = {
         'exit_btn': "Exit Program",
         'exit_confirm': "Are you sure you want to exit the program?",
         'exit_confirm_title': "Exit Confirmation",
-        'create_zip': "Create ZIP archive",
-        'delete_after_zip': "Delete files after ZIP",
-        'creating_zip': "Creating ZIP archive...",
-        'zip_complete': "ZIP archive created",
-        'deleting_files': "Deleting original files...",
-        'zip_error': "Error creating archive: {error}",
     }
 }

@@ -22,14 +22,11 @@ Desktop, and provides live progress information for each drive.
   Windows username.
 - Shows per-drive status and copy progress in the graphical interface.
 - Automatically ejects a disc after copying.
-- Optionally creates a ZIP archive of the copied folder.
-- Can delete the copied source folder after a successful ZIP operation when
-  that option is enabled.
 - Supports English and Polish.
 - Keeps the application window visible while copying.
 - Uses a compact, responsive layout with a dedicated status area and log panel.
 - Prevents more than one application instance from running.
-- Stores the destination, language, and archive preference in `config.json`.
+- Stores the destination and language in `config.json`.
 - Supports both source execution and a standalone PyInstaller executable.
 
 ## Requirements
@@ -38,7 +35,7 @@ Desktop, and provides live progress information for each drive.
 - Python 3.7 or newer.
 - Access to at least one CD/DVD drive, physical or redirected.
 - Write access to the selected destination folder.
-- Enough free disk space for the copied files and any optional ZIP archive.
+- Enough free disk space for the copied files.
 
 ## Installation
 
@@ -88,8 +85,7 @@ Settings are stored in `config.json`:
 {
     "target_path": "C:\\\\Users\\\\Public\\\\CopiedDiscs",
     "default_language": "en",
-    "version": "1.0.0",
-    "create_zip": false
+    "version": "1.0.0"
 }
 ```
 
@@ -98,7 +94,6 @@ Settings are stored in `config.json`:
 | `target_path` | Root folder where timestamped disc folders are created. Local paths and accessible UNC paths are supported. |
 | `default_language` | Startup language: `en` or `pl`. |
 | `version` | Configuration version value. |
-| `create_zip` | Whether to create a ZIP archive after copying: `true` or `false`. |
 
 The destination and language can also be changed in the application. Changes
 are saved when the application exits.
@@ -116,8 +111,7 @@ For each detected disc, SmartDiskCopier creates a folder similar to:
 ```
 
 The folder name includes the source drive letter, the Windows username, and a
-timestamp. If ZIP creation is enabled, the archive is created in the
-destination folder after the copy completes.
+timestamp.
 
 ## Screenshots
 
@@ -145,13 +139,6 @@ destination folder after the copy completes.
 - Confirm that the destination is reachable and writable.
 - Verify that there is enough free disk space.
 - For a network destination, check the UNC path and network connection.
-
-### ZIP creation fails
-
-- Confirm that the destination has enough free space for a second copy of the
-  data.
-- Check that the destination folder is not locked by another application.
-- Disable ZIP creation in the interface or set `create_zip` to `false`.
 
 ## Project Files
 
