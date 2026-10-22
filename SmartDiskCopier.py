@@ -61,18 +61,21 @@ class DiskCopier:
         
         # Kolory
         self.colors = {
-            'primary': '#1976D2',      # Ciemniejszy niebieski
-            'secondary': '#2196F3',    # Niebieski
-            'accent': '#64B5F6',       # Jasny niebieski
-            'background': '#E3F2FD',   # Bardzo jasny niebieski
-            'surface': '#FFFFFF',      # Biały
-            'text': '#212121',         # Ciemnoszary
-            'text_secondary': '#757575' # Średnioszary
+            'primary': '#1E3A5F',
+            'secondary': '#2563EB',
+            'accent': '#14B8A6',
+            'background': '#F4F7FB',
+            'surface': '#FFFFFF',
+            'text': '#172033',
+            'text_secondary': '#64748B',
+            'border': '#DCE4EF',
+            'muted_surface': '#EEF3F8'
         }
         
         # Konfiguracja stylów
         self.style.configure('Main.TFrame', background=self.colors['background'])
         self.style.configure('Toolbar.TFrame', background=self.colors['surface'])
+        self.style.configure('ToolbarAccent.TFrame', background=self.colors['primary'])
         self.style.configure('Title.TLabel',
                            font=('Segoe UI', 16, 'bold'),
                            background=self.colors['surface'],
@@ -86,8 +89,8 @@ class DiskCopier:
                            borderwidth=0,
                            relief='flat')
         self.style.configure('Card.TLabelframe.Label',
-                           background=self.colors['primary'],
-                           foreground='white',
+                           background=self.colors['surface'],
+                           foreground=self.colors['text'],
                            font=('Segoe UI', 10, 'bold'),
                            padding=5)
         
@@ -104,25 +107,33 @@ class DiskCopier:
                            font=('Segoe UI', 10, 'bold'),
                            background=self.colors['primary'],
                            foreground='white',
-                           padding=5)
+                           padding=(10, 7))
         
         self.style.configure('Header.TLabel',
                            font=('Segoe UI', 10, 'bold'),
                            background=self.colors['surface'],
-                           foreground=self.colors['primary'],
-                           padding=3)
+                           foreground=self.colors['text'],
+                           padding=(3, 5))
         
         self.style.configure('Info.TLabel',
                            font=('Segoe UI', 9),
                            background=self.colors['surface'],
                            foreground=self.colors['text_secondary'],
-                           padding=2)
+                           padding=(3, 2))
+
+        self.style.configure('CardContent.TFrame',
+                           background=self.colors['surface'])
+        self.style.configure('Empty.TLabel',
+                           font=('Segoe UI', 10),
+                           background=self.colors['muted_surface'],
+                           foreground=self.colors['text_secondary'],
+                           padding=20)
         
         # Styl dla paska postępu
         self.style.configure("Modern.Horizontal.TProgressbar",
-                           troughcolor=self.colors['background'],
-                           background=self.colors['secondary'],
-                           thickness=10)
+                           troughcolor=self.colors['muted_surface'],
+                           background=self.colors['accent'],
+                           thickness=8)
 
         self.destination_root = self.config.get('target_path', r'\\qnap4\d-plytki\Plytki')
         self.drives = []
@@ -142,9 +153,9 @@ class DiskCopier:
         # Dodaj style dla kafelków
         self.style.configure('DriveCard.TLabelframe',
                            background=self.colors['surface'],
-                           borderwidth=1,
-                           relief='solid',
-                           padding=8)
+                           borderwidth=0,
+                           relief='flat',
+                           padding=0)
         
         self.style.configure('StatusFrame.TFrame',
                            background=self.colors['surface'],
@@ -208,20 +219,28 @@ class DiskCopier:
         controls_frame = ttk.Frame(self.main_container)
         controls_frame.pack(fill='x', pady=(0, 5))
 
-        top_buttons_frame = ttk.Frame(controls_frame, style='Toolbar.TFrame')
+        top_buttons_frame = ttk.Frame(controls_frame, style='ToolbarAccent.TFrame')
         top_buttons_frame.pack(fill='x', pady=(0, 5))
 
-        title_frame = ttk.Frame(top_buttons_frame, style='Toolbar.TFrame')
+        title_frame = ttk.Frame(top_buttons_frame, style='ToolbarAccent.TFrame')
         title_frame.pack(side='left', fill='x', expand=True, padx=12, pady=8)
+        self.style.configure('TitleOnAccent.TLabel',
+                           font=('Segoe UI', 16, 'bold'),
+                           background=self.colors['primary'],
+                           foreground='white')
+        self.style.configure('SubtitleOnAccent.TLabel',
+                           font=('Segoe UI', 9),
+                           background=self.colors['primary'],
+                           foreground='#D7E5F5')
         ttk.Label(
             title_frame,
             text=self.get_text('window_title'),
-            style='Title.TLabel'
+            style='TitleOnAccent.TLabel'
         ).pack(anchor='w')
         self.app_subtitle_label = ttk.Label(
             title_frame,
             text=self.get_text('app_subtitle'),
-            style='Subtitle.TLabel'
+            style='SubtitleOnAccent.TLabel'
         )
         self.app_subtitle_label.pack(anchor='w', pady=(2, 0))
 
@@ -234,7 +253,7 @@ class DiskCopier:
         self.exit_button.pack(side='right', padx=12, pady=12)
 
         settings_frame = ttk.Frame(controls_frame)
-        settings_frame.pack(fill='x', pady=(0, 5))
+        settings_frame.pack(fill='x', pady=(2, 5))
 
         lang_buttons_frame = ttk.Frame(settings_frame)
         lang_buttons_frame.pack(side='left', padx=(5, 15))
@@ -263,7 +282,7 @@ class DiskCopier:
             style='Card.TLabelframe',
             padding=(12, 8)
         )
-        folder_frame.pack(fill='x', padx=5, pady=5)
+        folder_frame.pack(fill='x', padx=5, pady=(2, 6))
 
         # Kontener na elementy folderu
         folder_content = ttk.Frame(folder_frame)
@@ -308,7 +327,7 @@ class DiskCopier:
             style='Card.TLabelframe',
             padding=10
         )
-        self.drives_container.pack(fill='both', expand=True, padx=5, pady=5)
+        self.drives_container.pack(fill='both', expand=True, padx=5, pady=(4, 6))
         
         self.drives_frame = ttk.Frame(self.drives_container, style='Main.TFrame')
         self.drives_frame.pack(fill='both', expand=True)
@@ -320,7 +339,7 @@ class DiskCopier:
             style='Card.TLabelframe',
             padding=10
         )
-        log_frame.pack(fill='x', padx=5, pady=(5, 0))
+        log_frame.pack(fill='x', padx=5, pady=(0, 0))
         
         self.log_text = ScrolledText(
             log_frame,
@@ -543,8 +562,8 @@ class DiskCopier:
                 widget.destroy()
             
             # Ustawienie gridu dla kafelków
-            drive_container = ttk.Frame(self.drives_frame)
-            drive_container.pack(fill='both', expand=True, padx=10)  # Dodane padx
+            drive_container = ttk.Frame(self.drives_frame, style='Main.TFrame')
+            drive_container.pack(fill='both', expand=True, padx=6, pady=4)
             
             # Konfiguracja kolumn z równymi wagami
             drive_container.grid_columnconfigure(0, weight=1, uniform='drive_col')
@@ -556,21 +575,23 @@ class DiskCopier:
                 col = idx % 2
                 
                 # Kontener na kafelek z ustaloną wysokością i szerokością
-                drive_card = ttk.LabelFrame(
+                drive_card = tk.Frame(
                     drive_container,
-                    text="",
-                    style='DriveCard.TLabelframe',
-                    padding=self.DRIVE_CARD_PADDING
+                    background=self.colors['surface'],
+                    highlightbackground=self.colors['border'],
+                    highlightcolor=self.colors['border'],
+                    highlightthickness=1,
+                    bd=0
                 )
                 drive_card.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
-                drive_card.grid_propagate(False)  # Zapobiega zmianie rozmiaru
+                drive_card.grid_propagate(False)
                 
                 # Wymuszenie minimalnych wymiarów
                 drive_card.configure(height=self.DRIVE_CARD_HEIGHT, width=self.DRIVE_CARD_WIDTH)
                 
                 # Kontener na zawartość
-                drive_content = ttk.Frame(drive_card)
-                drive_content.pack(fill='both', expand=True)
+                drive_content = ttk.Frame(drive_card, style='CardContent.TFrame')
+                drive_content.pack(fill='both', expand=True, padx=1, pady=1)
                 
                 # Tytuł napędu z ikoną
                 ttk.Label(
@@ -588,7 +609,7 @@ class DiskCopier:
                     status_container,
                     text=f"{self.get_text('status_prefix')}{self.get_text('waiting')}",
                     style='Header.TLabel',
-                    wraplength=self.DRIVE_CARD_WIDTH - (2 * self.DRIVE_CARD_PADDING)
+                    wraplength=self.DRIVE_CARD_WIDTH - 30
                 )
                 self.status_labels[drive].pack(fill='x', pady=(0, 2))
                 
@@ -597,7 +618,7 @@ class DiskCopier:
                     status_container,
                     text=self.get_text('insert_disc'),
                     style='Info.TLabel',
-                    wraplength=self.DRIVE_CARD_WIDTH - (2 * self.DRIVE_CARD_PADDING)
+                    wraplength=self.DRIVE_CARD_WIDTH - 30
                 )
                 self.substatus_labels[drive].pack(fill='x')
                 
@@ -611,7 +632,11 @@ class DiskCopier:
             
             self.log('total_drives_detected', True, count=len(self.drives))
             if not self.drives:
-                ttk.Label(self.drives_frame, text=self.get_text('no_drives')).pack()
+                ttk.Label(
+                    self.drives_frame,
+                    text=self.get_text('no_drives'),
+                    style='Empty.TLabel'
+                ).pack(fill='x', padx=20, pady=20)
                 self.log('no_drives', True)
                 
         except Exception as e:
